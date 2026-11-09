@@ -310,6 +310,7 @@ export {
 export {
   alignToStoredLog,
   isBridgeCustomChunk,
+  isStoredReplayChunk,
   JournalReplayDivergedError,
   JournalReplayThreadIdMismatchError,
   DEFAULT_MAX_OUT_OF_BAND_SKIP,
