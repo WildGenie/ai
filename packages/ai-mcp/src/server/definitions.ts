@@ -93,6 +93,11 @@ export function resourceDefinition<
         uriTemplate?: never
         list?: never
         argsSchema?: never
+        title?: string
+        description?: string
+        icons?: ReadonlyArray<Record<string, unknown>>
+        annotations?: Record<string, unknown>
+        _meta?: Record<string, unknown>
       }
     | {
         name: string
@@ -101,6 +106,11 @@ export function resourceDefinition<
         uri?: never
         list?: MCPResourceList
         argsSchema?: PromptArgsSchema<unknown>
+        title?: string
+        description?: string
+        icons?: ReadonlyArray<Record<string, unknown>>
+        annotations?: Record<string, unknown>
+        _meta?: Record<string, unknown>
       },
 >(config: TConfig) {
   const hasUri = config.uri !== undefined
@@ -161,11 +171,17 @@ export function promptDefinition<const TName extends string, TArgs>(config: {
   name: TName
   description: string
   argsSchema: PromptArgsSchema<TArgs>
+  title?: string
+  icons?: ReadonlyArray<Record<string, unknown>>
+  _meta?: Record<string, unknown>
 }) {
   const definition = {
     name: config.name,
     description: config.description,
     argsSchema: config.argsSchema,
+    ...(config.title !== undefined ? { title: config.title } : {}),
+    ...(config.icons !== undefined ? { icons: config.icons } : {}),
+    ...(config._meta !== undefined ? { _meta: config._meta } : {}),
   }
 
   return {

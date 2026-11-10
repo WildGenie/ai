@@ -68,6 +68,11 @@ type McpResource = {
   uriTemplate?: string
   list?: MCPResourceList
   read: BivariantResourceRead
+  title?: string
+  description?: string
+  icons?: ReadonlyArray<Record<string, unknown>>
+  annotations?: Record<string, unknown>
+  _meta?: Record<string, unknown>
 }
 
 // A method type is bivariant, so a `read` with narrower params assigns.
@@ -100,11 +105,16 @@ type McpPrompt = {
     parse: (input: unknown) => unknown
   }
   render: BivariantCallback<unknown, unknown>
+  title?: string
+  icons?: ReadonlyArray<Record<string, unknown>>
+  _meta?: Record<string, unknown>
 }
 
 export type MCPServerOptions = {
   name: string
   version: string
+  title?: string
+  icons?: ReadonlyArray<Record<string, unknown>>
   tools?: ReadonlyArray<AnyServerTool>
   resources?: ReadonlyArray<McpResource>
   prompts?: ReadonlyArray<McpPrompt>
@@ -488,7 +498,16 @@ function buildMcpServer(input: {
   appContext: AppContext
 }) {
   const server = new McpServer(
-    { name: input.options.name, version: input.options.version },
+    {
+      name: input.options.name,
+      version: input.options.version,
+      ...(typeof input.options.title === 'string'
+        ? { title: input.options.title }
+        : {}),
+      ...(Array.isArray(input.options.icons)
+        ? { icons: input.options.icons as never }
+        : {}),
+    },
     serverOptions(input.era, input.hasTaskTool),
   )
   if (input.options.onerror !== undefined) {
@@ -592,20 +611,23 @@ const annotationHints = [
   'openWorldHint',
 ] as const
 
-// `metadata.title`, `metadata.annotations`, and `metadata._meta` on a tool
-// definition reach the host as the MCP tool title, annotations, and `_meta`.
-// `_meta.ui.resourceUri` links an MCP Apps view to the tool.
+// `metadata.title`, `metadata.icons`, `metadata.annotations`, and `metadata._meta`
+// on a tool definition reach the host as the MCP tool title, icons, annotations,
+// and `_meta`. `_meta.ui.resourceUri` links an MCP Apps view to the tool.
 function toolPresentation(metadata: Record<string, unknown> | undefined) {
   const title = typeof metadata?.title === 'string' ? metadata.title : undefined
+  const icons = Array.isArray(metadata?.icons)
+    ? (metadata.icons as never)
+    : undefined
   const _meta = isRecord(metadata?._meta) ? metadata._meta : undefined
   const raw = metadata?.annotations
-  if (!isRecord(raw)) return { title, _meta }
+  if (!isRecord(raw)) return { title, icons, _meta }
   const annotations: ToolAnnotations = {}
   if (typeof raw.title === 'string') annotations.title = raw.title
   for (const hint of annotationHints) {
     if (typeof raw[hint] === 'boolean') annotations[hint] = raw[hint]
   }
-  return { title, annotations, _meta }
+  return { title, icons, annotations, _meta }
 }
 
 async function runTaskTool(
@@ -808,7 +830,20 @@ function registerServerResource(
   resource: McpResource,
   appContext: AppContext,
 ) {
-  const metadata = { mimeType: resource.mimeType }
+  const metadata = {
+    mimeType: resource.mimeType,
+    ...(typeof resource.title === 'string' ? { title: resource.title } : {}),
+    ...(typeof resource.description === 'string'
+      ? { description: resource.description }
+      : {}),
+    ...(Array.isArray(resource.icons)
+      ? { icons: resource.icons as never }
+      : {}),
+    ...(isRecord(resource.annotations)
+      ? { annotations: resource.annotations as never }
+      : {}),
+    ...(isRecord(resource._meta) ? { _meta: resource._meta } : {}),
+  }
   const resourceContext = (sdkCtx: ServerContext): MCPResourceContext => ({
     context: { ...appContext(), authInfo: sdkCtx.http?.authInfo },
   })
@@ -861,7 +896,13 @@ function registerServerPrompt(
 ) {
   server.registerPrompt(
     prompt.name,
-    { description: prompt.description, argsSchema },
+    {
+      description: prompt.description,
+      argsSchema,
+      ...(typeof prompt.title === 'string' ? { title: prompt.title } : {}),
+      ...(Array.isArray(prompt.icons) ? { icons: prompt.icons as never } : {}),
+      ...(isRecord(prompt._meta) ? { _meta: prompt._meta } : {}),
+    },
     async (args) => {
       const rendered = await prompt.render(args ?? {})
       return { messages: promptMessages(rendered) }
